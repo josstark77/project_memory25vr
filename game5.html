@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Wisconsin Card Sorting Test (Analogue)</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #0b1020;
+            color: white;
+            text-align: center;
+            margin: 0;
+            padding: 20px;
+        }
+        #instructions {
+            background: green;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px auto;
+            width: 70%;
+        }
+        .card-container {
+            display: flex;
+            justify-content: center;
+            margin: 20px 0;
+        }
+        .card {
+            width: 120px;
+            height: 120px;
+            margin: 10px;
+            background-color: lightgray;
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            align-items: center;
+            justify-items: center;
+            font-size: 42px;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: transform 0.2s, background-color 0.3s;
+            overflow: hidden;
+        }
+        .card span {
+            font-size: 40px;
+            line-height: 1;
+        }
+        .card:hover {
+            transform: scale(1.1);
+        }
+        .correct {
+            background-color: lightgreen !important;
+        }
+        .wrong {
+            background-color: #ff6666 !important;
+        }
+        #feedback {
+            margin-top: 20px;
+            font-size: 22px;
+            font-weight: bold;
+        }
+        #nextBtn {
+            margin-top: 20px;
+            padding: 10px 20px;
+            font-size: 18px;
+            border: none;
+            border-radius: 5px;
+            background: #008CBA;
+            color: white;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+<div id="instructions"></div>
+<div id="game" style="display:none;">
+    <!-- Top target cards -->
+    <div class="card-container" id="targets">
+        <div class="card" data-shape="circle" data-color="red" data-number="1"><span>🔴</span></div>
+        <div class="card" data-shape="triangle" data-color="green" data-number="2"><span>🔺</span><span>🔺</span></div>
+        <div class="card" data-shape="plus" data-color="blue" data-number="3"><span>➕</span><span>➕</span><span>➕</span></div>
+        <div class="card" data-shape="star" data-color="yellow" data-number="4"><span>⭐️</span><span>⭐️</span><span>⭐️</span><span>⭐️</span></div>
+    </div>
+
+    <!-- Current card -->
+    <div class="card-container">
+        <div class="card" id="current-card"></div>
+    </div>
+
+    <div id="feedback"></div>
+</div>
+
+<button id="nextBtn">Next</button>
+
+<script>
+    const instructionPages = [
+        `<b>Wisconsin Card Sorting Test analogue</b><br><br>
+    Match the card below to one of four cards at the top.<br><br>
+    If your match was wrong, try a different rule.`,
+        `Example:<br>
+    - Match by color → first card<br>
+    - Match by shape → second card<br>
+    - Match by number → fourth card<br><br>
+    <div class="card-container">
+      <div class="card"><span>🔴</span></div>
+      <div class="card"><span>🔺</span><span>🔺</span></div>
+      <div class="card"><span>➕</span><span>➕</span><span>➕</span></div>
+      <div class="card"><span>⭐️</span><span>⭐️</span><span>⭐️</span><span>⭐️</span></div>
+    </div>
+    <div class="card"><span>🔺</span><span>🔺</span><span>🔺</span></div>`,
+        `You must figure out whether to match by <b>color, number, or shape</b>.<br><br>
+    The rule will change sometimes — pay attention to feedback!<br><br>
+    <b>There are 60 trials.</b>`
+    ];
+
+    let pageIndex = 0;
+    let trial = 0;
+    let correctStreak = 0;
+    let correctCount = 0;
+    let wrongCount = 0;
+    let gameOver = false;
+
+    const rules = ["color", "shape", "number"];
+    let currentRule = rules[Math.floor(Math.random() * rules.length)];
+
+    const instructionsDiv = document.getElementById("instructions");
+    const gameDiv = document.getElementById("game");
+    const nextBtn = document.getElementById("nextBtn");
+    const feedback = document.getElementById("feedback");
+    const currentCard = document.getElementById("current-card");
+    const targets = document.querySelectorAll("#targets .card");
+
+    instructionsDiv.innerHTML = instructionPages[pageIndex];
+
+    nextBtn.addEventListener("click", () => {
+        if (pageIndex < instructionPages.length - 1) {
+            pageIndex++;
+            instructionsDiv.innerHTML = instructionPages[pageIndex];
+        } else {
+            startGame();
+        }
+    });
+
+    function startGame() {
+        instructionsDiv.style.display = "none";
+        nextBtn.style.display = "none";
+        gameDiv.style.display = "block";
+        nextTrial();
+    }
+
+    function nextTrial() {
+        if (gameOver) return; // stop if finished
+
+        feedback.textContent = "";
+        targets.forEach(c => c.classList.remove("correct", "wrong"));
+
+        if (trial >= 60) {
+            gameOver = true;
+            feedback.style.color = "lightgreen";
+            feedback.innerHTML = `🎉 Task complete!<br>
+                                  ✅ Correct: ${correctCount}<br>
+                                  ❌ Wrong: ${wrongCount}`;
+            return;
+        }
+        trial++;
+
+        // Random card
+        let shapes = ["circle","triangle","plus","star"];
+        let colors = ["red","green","blue","yellow"];
+        let numbers = [1,2,3,4];
+        let randomShape = shapes[Math.floor(Math.random() * shapes.length)];
+        let randomColor = colors[Math.floor(Math.random() * colors.length)];
+        let randomNumber = numbers[Math.floor(Math.random() * numbers.length)];
+
+        currentCard.dataset.shape = randomShape;
+        currentCard.dataset.color = randomColor;
+        currentCard.dataset.number = randomNumber;
+
+        // Symbol
+        let symbol = randomShape === "circle" ? "🔴" :
+            randomShape === "triangle" ? "🔺" :
+                randomShape === "plus" ? "➕" : "⭐️";
+
+        currentCard.innerHTML = "";
+        for (let i = 0; i < randomNumber; i++) {
+            const span = document.createElement("span");
+            span.textContent = symbol;
+            currentCard.appendChild(span);
+        }
+    }
+
+    // Attach click listeners once
+    targets.forEach(card => {
+        card.addEventListener("click", () => {
+            if (gameOver) return; // ignore clicks after 60 trials
+
+            let currentValue = currentCard.dataset[currentRule];
+            let chosenValue = card.dataset[currentRule];
+
+            if (currentValue === chosenValue) {
+                card.classList.add("correct");
+                feedback.style.color = "lightgreen";
+                feedback.textContent = "✅ Correct!";
+                correctStreak++;
+                correctCount++;
+                if (correctStreak >= 5) {
+                    currentRule = rules[Math.floor(Math.random() * rules.length)];
+                    correctStreak = 0;
+                }
+            } else {
+                card.classList.add("wrong");
+                feedback.style.color = "red";
+                feedback.textContent = "❌ Wrong! Try another rule.";
+                correctStreak = 0;
+                wrongCount++;
+            }
+            setTimeout(nextTrial, 1000);
+        });
+    });
+</script>
+
+</body>
+</html>
+
+
+<script type="module">
+    import { saveResult } from "./firebase.js";
+
+    function finishWCST(score) {
+        saveResult("WCST", score);
+        alert("All games finished! Thank you.");
+        window.location.href = "index.html"; // back to menu if needed
+    }
+</script>

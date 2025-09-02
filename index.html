@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Memory Task Menu</title>
+    <style>
+        body { font-family: Arial; background:#111; color:#fff; text-align:center; }
+        h1 { margin-top: 20px; }
+        .form-box { margin: 20px auto; width: 300px; text-align: left; }
+        label { display:block; margin-top:10px; }
+        input {
+            width: 100%; padding: 8px; margin-top: 5px;
+            border-radius: 5px; border: none;
+        }
+        button {
+            margin: 15px;
+            padding: 12px 25px;
+            font-size: 18px;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+        .disabled { background: #555; cursor: not-allowed; }
+    </style>
+</head>
+<body>
+<h1>Enter Your Details</h1>
+<div class="form-box">
+    <label>Name: <input type="text" id="playerName"></label>
+    <label>Year: <input type="text" id="playerYear"></label>
+    <label>Branch: <input type="text" id="playerBranch"></label>
+    <label>Age: <input type="number" id="playerAge"></label>
+    <button onclick="saveUser()">Save & Continue</button>
+</div>
+
+<h1>Select a Cognitive Task</h1>
+<button id="g1" class="disabled" disabled onclick="location.href='game1.html'">Digit Span Test</button>
+<button id="g2" class="disabled" disabled onclick="location.href='game2.html'">Tower of Hanoi</button>
+<button id="g3" class="disabled" disabled onclick="location.href='game3.html'">N-Back Task</button>
+<button id="g4" class="disabled" disabled onclick="location.href='game4.html'">Corsi Block Test</button>
+<button id="g5" class="disabled" disabled onclick="location.href='game5.html'">Wisconsin Card Sorting Test</button>
+
+<script type="module">
+    import { saveUserInfo } from "./firebase.js";
+
+    function enableButtons() {
+        document.querySelectorAll("button").forEach(btn => {
+            if (btn.id) {
+                btn.disabled = false;
+                btn.classList.remove("disabled");
+            }
+        });
+    }
+
+    window.saveUser = function() {
+        const name = document.getElementById("playerName").value;
+        const year = document.getElementById("playerYear").value;
+        const branch = document.getElementById("playerBranch").value;
+        const age = document.getElementById("playerAge").value;
+
+        if (!name || !year || !branch || !age) {
+            alert("Please fill all fields!");
+            return;
+        }
+
+        // save details in localStorage (so games can access)
+        localStorage.setItem("playerInfo", JSON.stringify({name, year, branch, age}));
+
+        // save to firebase
+        saveUserInfo(name, year, branch, age);
+
+        alert("Details saved! Now you can play the games.");
+        enableButtons();
+    }
+</script>
+</body>
+</html>
+

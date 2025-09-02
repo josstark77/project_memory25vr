@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <title>Corsi 9-Block Test — Levels + Instructions</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style>
+        :root{
+            --bg:#0b1020; --panel:#0e1730; --text:#e8eefc; --muted:#9fb0d1;
+            --tile:#1a2442; --tile-border:#2c3a66; --flash-border:#ffffff;
+            --accent:#63e6be;
+        }
+        * { box-sizing: border-box; }
+        body {
+            margin: 0; font-family: system-ui, Arial, sans-serif;
+            background: var(--bg); color: var(--text);
+            display: grid; place-items: center; min-height: 100vh; padding: 24px;
+        }
+        .card {
+            background: var(--panel); border-radius: 16px; padding: 22px; max-width: 760px; width: 100%;
+            box-shadow: 0 20px 50px rgba(0,0,0,.35);
+        }
+        h1 { margin: 0 0 8px; font-size: 22px; }
+        .sub { color: var(--muted); font-size: 14px; margin-bottom: 12px; }
+        .instructions {
+            background: #12182f; border: 1px solid #243556; padding: 12px; border-radius: 10px; margin-bottom: 14px;
+            font-size: 15px; color: var(--muted);
+        }
+
+        .content {
+            display: grid; grid-template-columns: 1fr 340px; gap: 18px;
+        }
+
+        .grid {
+            width: 100%; aspect-ratio: 1/1; display: grid; grid-template-columns: repeat(3, 1fr);
+            gap: 12px; margin: 14px 0 10px; user-select: none;
+        }
+        .tile {
+            background: var(--tile); border: 2px solid var(--tile-border);
+            border-radius: 12px; cursor: pointer; transition: transform .08s ease, box-shadow .15s ease, border-color .15s ease;
+            position: relative; overflow: hidden; display:flex; align-items:center; justify-content:center;
+            font-weight:700; color: rgba(255,255,255,0.08); font-size:20px;
+        }
+        .tile:active { transform: scale(0.98); }
+        .tile.disabled { cursor: not-allowed; opacity: .98; }
+        .tile .glow {
+            position: absolute; inset: 0; opacity: 0; transition: opacity .12s ease; border-radius: 10px;
+        }
+        .tile.flash {
+            border-color: var(--flash-border); box-shadow: 0 0 0 2px rgba(255,255,255,.25), 0 10px 30px rgba(0,0,0,.35);
+        }
+        .tile.flash .glow { opacity: .95; }
+
+        .info-panel {
+            background:#0d1323; border-radius:12px; padding:12px; border:1px solid #22314a; color:var(--muted);
+        }
+        .row { display:flex; gap:10px; align-items:center; justify-content:space-between; margin-top:10px; }
+        .left { display:flex; gap:10px; align-items:center; }
+        button {
+            background: #1f2b4e; color: white; border: 1px solid #2e4178;
+            padding: 10px 14px; border-radius: 12px; cursor: pointer; font-weight: 600;
+        }
+        button.secondary { background:transparent; border:1px solid #2b394f; color:var(--muted); padding:8px 10px; font-weight:600;}
+        button:disabled { opacity: .45; cursor: not-allowed; }
+        #msg { min-height: 28px; font-weight: 700; text-align:center; }
+        .ok { color: #7dffa0; }
+        .bad { color: #ffb3b3; }
+        .pill {
+            font-size: 12px; color: var(--muted); background:#0c1322; border:1px solid #253463;
+            border-radius: 999px; padding: 6px 10px;
+        }
+
+        /* Overlay / modal for instruction flow */
+        .overlay {
+            position: fixed; inset:0; display: none; place-items: center; background: rgba(3,6,12,.6); z-index: 40;
+        }
+        .modal {
+            background:var(--panel); border-radius: 12px; padding: 18px; max-width:720px; width: 94%; color:var(--text);
+            box-shadow: 0 15px 50px rgba(0,0,0,.5);
+        }
+        .modal h2 { margin-top:0; font-size:18px; }
+        .modal p { color:var(--muted); font-size:14px; }
+        .modal .modal-actions { display:flex; gap:10px; justify-content:flex-end; margin-top:12px; }
+
+        /* "How to Play" example grid (small) */
+        .example {
+            display:grid; grid-template-columns: 1fr 1fr; gap:12px; align-items:center;
+        }
+        .example-grid {
+            width:160px; height:160px; display:grid; grid-template-columns:repeat(3,1fr); gap:8px;
+            background:transparent;
+        }
+        .ex-tile { background:var(--tile); border-radius:8px; border:1px solid var(--tile-border); display:flex; align-items:center; justify-content:center; font-weight:700; color:rgba(255,255,255,0.08); }
+        .ex-tile.flash { box-shadow: 0 0 0 3px rgba(255,255,255,.18); transform:scale(1.02); }
+
+        /* level badge */
+        .level-badge { padding:6px 10px; border-radius:10px; background:#09121f; border:1px solid #1f3350; color:var(--muted); font-weight:700; }
+
+        /* small responsive tweaks */
+        @media (max-width: 860px) {
+            .content { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+<div class="card" role="application" aria-labelledby="title">
+    <h1 id="title">Corsi 9-Block Test</h1>
+    <div class="sub">Levels, instructions & example added — watch the demo then reproduce the sequence.</div>
+
+    <div class="content">
+        <div>
+            <div id="grid" class="grid" aria-label="Corsi grid"></div>
+
+            <div class="row">
+                <div class="left">
+                    <button id="startBtn">Instructions</button>
+                    <button id="playDescBtn" disabled>How to Play</button>
+                    <button id="startLevelBtn" disabled>Start Level</button>
+                    <span id="status" class="pill">Idle</span>
+                </div>
+                <div id="msg"></div>
+            </div>
+        </div>
+
+        <div class="info-panel">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <div>
+                    <div style="font-weight:700; font-size:16px;">Session</div>
+                    <div style="color:var(--muted); font-size:13px;">Try to reproduce the sequence shown</div>
+                </div>
+                <div style="text-align:right;">
+                    <div class="level-badge" id="levelBadge">Level 1</div>
+                    <div style="color:var(--muted); font-size:12px; margin-top:6px;">Attempts: <span id="attemptsLeft">3</span></div>
+                </div>
+            </div>
+
+            <hr style="border:0; border-top:1px solid #16243a; margin:10px 0;">
+
+            <div style="font-size:13px; color:var(--muted);">
+                <strong>Level mapping:</strong>
+                <ul style="padding-left:18px; margin:8px 0;">
+                    <li>Level 1 → 3 blocks</li>
+                    <li>Level 2 → 4</li>
+                    <li>Level 3 → 5</li>
+                    <li>Level 4 → 6</li>
+                    <li>Level 5 → 7</li>
+                    <li>Level 6 → 8</li>
+                    <li>Level 7 → 9 (unique)</li>
+                    <li>Level 8 → 9 (allow repeated blocks)</li>
+                </ul>
+            </div>
+
+            <div style="display:flex; gap:8px; margin-top:12px;">
+                <button id="nextLevelBtn" class="secondary" disabled>Next Level</button>
+                <button id="retryBtn" class="secondary" disabled>Retry Level</button>
+                <button id="restartBtn" class="secondary" disabled>Restart Session</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Overlays: 1) Instructions, 2) How to Play example -->
+<div id="overlay" class="overlay" aria-hidden="true">
+    <div class="modal" role="dialog" aria-modal="true">
+        <div id="overlayContent">
+            <!-- content swaps dynamically -->
+            <h2>Instructions</h2>
+            <p>
+                You will be shown a sequence of <strong>flashes</strong> on the 3×3 grid. The order matters.
+                After the sequence finishes, reproduce the sequence by tapping the same tiles in the same order.
+            </p>
+            <p>
+                You have <strong id="maxAttemptsText">3 chances</strong> per level. If incorrect, the next attempt will display a new sequence for that same level.
+                Complete the sequence correctly to proceed to the next level.
+            </p>
+            <div class="modal-actions">
+                <button id="overlayContinue">Continue</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="howOverlay" class="overlay" aria-hidden="true">
+    <div class="modal" role="dialog" aria-modal="true">
+        <h2>How to play — example</h2>
+        <p style="color:var(--muted); font-size:14px;">
+            Watch the example sequence (it will flash 3 tiles). Afterwards, tap the exact tiles in the same order.
+        </p>
+
+        <div class="example">
+            <div>
+                <div id="exampleGrid" class="example-grid" aria-hidden="true">
+                    <!-- 9 small tiles inserted by JS -->
+                </div>
+            </div>
+            <div style="color:var(--muted); font-size:13px;">
+                <strong>Example behavior:</strong>
+                <ol style="padding-left:16px; margin-top:8px;">
+                    <li>The test flashes tiles in order (e.g., 2 → 5 → 1).</li>
+                    <li>When it's your turn, the grid becomes active and you tap tiles in order.</li>
+                    <li>If you make a mistake, you get another attempt (until attempts finish).</li>
+                </ol>
+            </div>
+        </div>
+
+        <div class="modal-actions" style="margin-top:12px;">
+            <button id="playExampleBtn">Play Example</button>
+            <button id="howCloseBtn">Got it — Start</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // ----- Config -----
+    const LEVEL_LENGTHS = [3,4,5,6,7,8,9,9];     // level 1..8
+    const MAX_ATTEMPTS = 3;
+    const FLASH_MS = 700;
+    const GAP_MS = 300;
+    const COLORS = ["#ff6b6b","#ffd166","#06d6a0","#4dabf7","#b197fc","#f06595","#ffa94d","#63e6be","#66d9e8"];
+
+    // ----- UI Elements -----
+    const gridEl = document.getElementById("grid");
+    const startBtn = document.getElementById("startBtn");
+    const playDescBtn = document.getElementById("playDescBtn");
+    const startLevelBtn = document.getElementById("startLevelBtn");
+    const statusEl = document.getElementById("status");
+    const msgEl = document.getElementById("msg");
+    const levelBadge = document.getElementById("levelBadge");
+    const attemptsLeftEl = document.getElementById("attemptsLeft");
+    const nextLevelBtn = document.getElementById("nextLevelBtn");
+    const retryBtn = document.getElementById("retryBtn");
+    const restartBtn = document.getElementById("restartBtn");
+
+    const overlay = document.getElementById("overlay");
+    const overlayContent = document.getElementById("overlayContent");
+    const overlayContinue = document.getElementById("overlayContinue");
+
+    const howOverlay = document.getElementById("howOverlay");
+    const exampleGrid = document.getElementById("exampleGrid");
+    const playExampleBtn = document.getElementById("playExampleBtn");
+    const howCloseBtn = document.getElementById("howCloseBtn");
+
+    // ----- State -----
+    let tiles = [];
+    let sequenceIdx = [];
+    let sequenceColors = [];
+    let userIdx = [];
+    let acceptingInput = false;
+    let playingBack = false;
+    let level = 1;                // current level 1..8
+    let attempts = MAX_ATTEMPTS;
+    let gameActive = false;
+    let lastResult = null;        // "success" or "fail" or null
+
+    // ----- Build main grid -----
+    function buildGrid() {
+        gridEl.innerHTML = "";
+        tiles = [];
+        for (let i=0;i<9;i++){
+            const t = document.createElement("div");
+            t.className = "tile disabled";
+            t.dataset.index = i;
+            t.setAttribute("role","button");
+            t.setAttribute("aria-label",`Tile ${i+1}`);
+            const glow = document.createElement("div");
+            glow.className = "glow";
+            t.appendChild(glow);
+            t.addEventListener("click", onTileClick);
+            tiles.push(t);
+            gridEl.appendChild(t);
+        }
+    }
+
+    // example grid builder
+    function buildExampleGrid() {
+        exampleGrid.innerHTML = "";
+        for (let i=0;i<9;i++){
+            const ex = document.createElement("div");
+            ex.className = "ex-tile";
+            ex.textContent = (i+1);
+            ex.dataset.index = i;
+            exampleGrid.appendChild(ex);
+        }
+    }
+
+    function setTilesEnabled(enabled) {
+        tiles.forEach(t => t.classList.toggle("disabled", !enabled));
+    }
+
+    // ----- Sequence generation -----
+    function sampleDistinct(k, n) {
+        const arr = Array.from({length:n}, (_,i)=>i);
+        for (let i=arr.length-1;i>0;i--){
+            const j = Math.floor(Math.random()*(i+1));
+            [arr[i],arr[j]] = [arr[j],arr[i]];
+        }
+        return arr.slice(0,k);
+    }
+    function sampleAllowRepeat(k, n) {
+        const out = [];
+        for (let i=0;i<k;i++) out.push(Math.floor(Math.random()*n));
+        return out;
+    }
+    function pickColors(k){
+        const c = COLORS.slice();
+        for (let i=c.length-1;i>0;i--){
+            const j = Math.floor(Math.random()*(i+1));
+            [c[i], c[j]] = [c[j], c[i]];
+        }
+        return c.slice(0,k);
+    }
+
+    // ----- Playback -----
+    function sleep(ms){ return new Promise(res=>setTimeout(res,ms)); }
+
+    async function playSequence() {
+        playingBack = true;
+        acceptingInput = false;
+        setTilesEnabled(false);
+        statusEl.textContent = `Showing sequence… (Level ${level})`;
+        msgEl.textContent = "";
+
+        for (let step=0; step<sequenceIdx.length; step++){
+            const idx = sequenceIdx[step];
+            const color = sequenceColors[step];
+            const tile = tiles[idx];
+            const glow = tile.querySelector(".glow");
+            glow.style.background = color;
+            tile.classList.add("flash");
+            await sleep(FLASH_MS);
+            tile.classList.remove("flash");
+            await sleep(GAP_MS);
+        }
+
+        playingBack = false;
+        acceptingInput = true;
+        setTilesEnabled(true);
+        statusEl.textContent = `Your turn: tap ${sequenceIdx.length} blocks (Level ${level})`;
+    }
+
+    // ----- Interaction -----
+    function onTileClick(e) {
+        if (!acceptingInput) return;
+        const idx = Number(e.currentTarget.dataset.index);
+        userIdx.push(idx);
+
+        // tiny feedback
+        e.currentTarget.style.borderColor = "#9ec1ff";
+        setTimeout(()=>{ e.currentTarget.style.borderColor = ""; }, 140);
+
+        if (userIdx.length === sequenceIdx.length) {
+            acceptingInput = false;
+            setTilesEnabled(false);
+            const correct = userIdx.every((v,i) => v === sequenceIdx[i]);
+
+            if (correct) {
+                msgEl.textContent = `✅ Correct! Level ${level} completed.`;
+                msgEl.className = "ok";
+                statusEl.textContent = "Completed";
+                lastResult = "success";
+                gameActive = false;
+                nextLevelBtn.disabled = (level >= 8 ? true : false) ? false : false; // enable next always unless level 8 completed (we'll still allow restart)
+                nextLevelBtn.disabled = (level >= 8) ? true : false;
+                retryBtn.disabled = true;
+                restartBtn.disabled = false;
+                // if not last level, enable next
+                if (level < 8) nextLevelBtn.disabled = false;
+                else {
+                    // Level 8 finished — final success
+                    msgEl.textContent = `🎉 Amazing — you completed Level 8 (final).`;
+                    msgEl.className = "ok";
+                    nextLevelBtn.disabled = true;
+                }
+            } else {
+                attempts--;
+                attemptsLeftEl.textContent = attempts;
+                if (attempts > 0) {
+                    msgEl.textContent = `❌ Not correct. Attempts left: ${attempts}. A new sequence will be shown for this level.`;
+                    msgEl.className = "bad";
+                    lastResult = "fail";
+                    retryBtn.disabled = true;
+                    startLevelBtn.disabled = true;
+                    // short pause, then new trial (same level)
+                    setTimeout(()=> {
+                        prepareNewTrialForCurrentLevel();
+                    }, 900);
+                } else {
+                    msgEl.textContent = `❌ Game Over for Level ${level}. You used all ${MAX_ATTEMPTS} attempts.`;
+                    msgEl.className = "bad";
+                    statusEl.textContent = "Game Over";
+                    gameActive = false;
+                    retryBtn.disabled = false;
+                    restartBtn.disabled = false;
+                    startLevelBtn.disabled = true;
+                    nextLevelBtn.disabled = true;
+                }
+            }
+        } else {
+            statusEl.textContent = `Your turn: ${userIdx.length}/${sequenceIdx.length} (Level ${level})`;
+        }
+    }
+
+    // ----- Control Flow: prepare / start / next / retry / restart -----
+    function prepareNewTrialForCurrentLevel() {
+        const len = LEVEL_LENGTHS[level-1];
+        // level 8 allows repeat
+        if (level === 8) {
+            sequenceIdx = sampleAllowRepeat(len, 9);
+        } else {
+            // ensure we have enough unique indices when len==9
+            sequenceIdx = sampleDistinct(len, 9);
+        }
+        sequenceColors = pickColors(sequenceIdx.length);
+        userIdx = [];
+        attempts = MAX_ATTEMPTS;
+        attemptsLeftEl.textContent = attempts;
+        nextLevelBtn.disabled = true;
+        retryBtn.disabled = true;
+        restartBtn.disabled = true;
+        startLevelBtn.disabled = false;
+        statusEl.textContent = `Ready to show sequence (Level ${level})`;
+    }
+
+    function startLevelPlayback() {
+        // triggered when user presses "Start Level"
+        gameActive = true;
+        startLevelBtn.disabled = true;
+        playDescBtn.disabled = true;
+        startBtn.disabled = true;
+        msgEl.textContent = "";
+        playSequence();
+    }
+
+    function beginSessionFromInstructions() {
+        // after user read instructions, we let them view How to Play or start directly
+        overlay.style.display = "none";
+        playDescBtn.disabled = false;
+        startLevelBtn.disabled = true;
+        startBtn.disabled = true;
+        statusEl.textContent = "Read instructions — open How to Play (example) or Start Level.";
+        // prepare the first trial
+        prepareNewTrialForCurrentLevel();
+        buildExampleGrid();
+    }
+
+    function nextLevel() {
+        if (level < 8) {
+            level++;
+            levelBadge.textContent = `Level ${level}`;
+            msgEl.textContent = `➡️ Moved to Level ${level}. Read instructions or press Start Level.`;
+            msgEl.className = "";
+            nextLevelBtn.disabled = true;
+            retryBtn.disabled = true;
+            restartBtn.disabled = true;
+            playDescBtn.disabled = false;
+            startLevelBtn.disabled = true;
+            startBtn.disabled = false; // allow user to open instructions again if wanted
+            prepareNewTrialForCurrentLevel();
+        }
+    }
+
+    function retryLevel() {
+        // user chooses to retry the failed level (reset attempts)
+        attempts = MAX_ATTEMPTS;
+        attemptsLeftEl.textContent = attempts;
+        msgEl.textContent = `Retrying Level ${level}. Press Start Level to see a new sequence.`;
+        msgEl.className = "";
+        retryBtn.disabled = true;
+        startLevelBtn.disabled = false;
+        prepareNewTrialForCurrentLevel();
+    }
+
+    function restartSession() {
+        level = 1;
+        levelBadge.textContent = `Level ${level}`;
+        attempts = MAX_ATTEMPTS;
+        attemptsLeftEl.textContent = attempts;
+        msgEl.textContent = "";
+        msgEl.className = "";
+        nextLevelBtn.disabled = true;
+        retryBtn.disabled = true;
+        restartBtn.disabled = true;
+        startBtn.disabled = false;
+        playDescBtn.disabled = true;
+        startLevelBtn.disabled = true;
+        overlay.style.display = "grid";
+        overlayContent.querySelector("h2").textContent = "Instructions";
+        overlayContent.querySelector("p").textContent = "You will be shown a sequence of flashes on the 3×3 grid. The order matters. After the sequence finishes, reproduce the sequence by tapping the same tiles in the same order.";
+    }
+
+    // ----- Example playback for How-to modal -----
+    async function playExampleSequence(exampleIndices=[1,4,0], ms=600) {
+        const exTiles = Array.from(exampleGrid.querySelectorAll(".ex-tile"));
+        // clear any flashes
+        exTiles.forEach(t => t.classList.remove("flash"));
+        for (let i=0;i<exampleIndices.length;i++){
+            const idx = exampleIndices[i];
+            const tile = exTiles[idx];
+            tile.classList.add("flash");
+            await sleep(ms);
+            tile.classList.remove("flash");
+            await sleep(180);
+        }
+    }
+
+    // ----- Events wiring -----
+    startBtn.addEventListener("click", ()=> {
+        // show instructions overlay — user must explicitly continue
+        overlay.style.display = "grid";
+        overlayContent.querySelector("h2").textContent = "Instructions";
+        // reset & update attempts text
+        overlayContent.querySelector("#maxAttemptsText")?.remove?.(); // ensure not duplicate
+        // provide continue
+    });
+
+    overlayContinue.addEventListener("click", ()=> {
+        // when continuing from instructions, show How-to modal next
+        overlay.style.display = "none";
+        // show How to Play overlay (user can play example or skip)
+        howOverlay.style.display = "grid";
+    });
+
+    playDescBtn.addEventListener("click", ()=> {
+        // also allow opening the How-to directly
+        howOverlay.style.display = "grid";
+    });
+
+    howCloseBtn.addEventListener("click", ()=> {
+        howOverlay.style.display = "none";
+        // after closing how-to, prepare the trial (but user must click Start Level to actually start)
+        prepareNewTrialForCurrentLevel();
+        startLevelBtn.disabled = false;
+        playDescBtn.disabled = true;
+        startBtn.disabled = true;
+        statusEl.textContent = `Ready — press "Start Level" to show the sequence for Level ${level}.`;
+    });
+
+    playExampleBtn.addEventListener("click", async ()=> {
+        // simple demo that flashes a few tiles
+        playExampleBtn.disabled = true;
+        await playExampleSequence([0,4,2], 500);
+        playExampleBtn.disabled = false;
+    });
+
+    startLevelBtn.addEventListener("click", ()=> {
+        // start playback for current level
+        startLevelPlayback();
+    });
+
+    nextLevelBtn.addEventListener("click", ()=> {
+        nextLevel();
+    });
+
+    retryBtn.addEventListener("click", ()=> {
+        retryLevel();
+    });
+
+    restartBtn.addEventListener("click", ()=> {
+        restartSession();
+    });
+
+    // keyboard support to close overlays (Esc)
+    document.addEventListener("keydown", (e)=>{
+        if (e.key === "Escape") {
+            overlay.style.display = "none";
+            howOverlay.style.display = "none";
+        }
+    });
+
+    // init
+    buildGrid();
+    buildExampleGrid();
+    attemptsLeftEl.textContent = MAX_ATTEMPTS;
+    levelBadge.textContent = `Level ${level}`;
+    startBtn.disabled = false;
+    playDescBtn.disabled = true;
+    startLevelBtn.disabled = true;
+    nextLevelBtn.disabled = true;
+    retryBtn.disabled = true;
+    restartBtn.disabled = true;
+    statusEl.textContent = "Idle — click Instructions to begin";
+
+    // Prepare the trial automatically after page load? NO — user must go through instruction flow (as requested).
+    // But prepare a sequence so the UI can show Ready after user goes through instructions.
+    // We'll keep sequences prepared only after they progress through overlay to ensure user sees instructions first.
+
+    // Ensure overlays are hidden by default
+    overlay.style.display = "none";
+    howOverlay.style.display = "none";
+
+    // Accessibility: set focus to Start/Instructions on load
+    startBtn.focus();
+</script>
+</body>
+</html>
+
+
+<script type="module">
+    import { saveResult } from "./firebase.js";
+
+    function finishCorsi(score) {
+        saveResult("Corsi Block Test", score);
+        alert("Score saved! Moving to WCST.");
+        window.location.href = "game5.html";
+    }
+</script>

@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <title>2-Back Task (Letters)</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <style>
+        :root {
+            --bg:#0b1020; --panel:#0e1730; --text:#e8eefc; --muted:#9fb0d1;
+            --good:#22c55e; --bad:#ef4444; --accent:#3b82f6;
+        }
+        * { box-sizing: border-box; }
+        body {
+            margin:0; min-height:100vh; display:flex; align-items:center; justify-content:center;
+            background: radial-gradient(1000px 600px at 50% -10%, #172347 0%, var(--bg) 50%);
+            color:var(--text); font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial;
+        }
+        .wrap { width:min(900px, 95vw); }
+        .card {
+            background:linear-gradient(160deg, var(--panel), #0b142e); border:1px solid #1c2748;
+            border-radius:16px; padding:24px; box-shadow:0 10px 30px rgba(0,0,0,.35);
+        }
+        h1 { margin:0 0 8px; }
+        p { color:var(--muted); }
+        .center { text-align:center; }
+        .btns { display:flex; gap:12px; justify-content:center; flex-wrap:wrap; margin-top:16px; }
+        button {
+            appearance:none; border:none; padding:12px 18px; border-radius:12px; cursor:pointer; font-weight:700;
+            background:#1f2b4d; color:white; border:1px solid #2b3a67;
+        }
+        button.primary { background:var(--accent); border-color:#315fd0; }
+        button.good { background:var(--good); }
+        button.warn { background:#f59e0b; }
+        .stim {
+            display:grid; place-items:center; height:260px; font-size:120px; font-weight:800;
+            background:#0b142e; border:1px dashed #23325d; border-radius:16px; user-select:none;
+        }
+        .row { display:flex; gap:12px; justify-content:space-between; flex-wrap:wrap; }
+        .stat {
+            flex:1; min-width:140px; background:#0b1226; border:1px solid #1e2a4e; border-radius:12px; padding:12px; text-align:center;
+        }
+        .label { color:var(--muted); font-size:13px; }
+        .value { font-size:26px; font-weight:800; }
+        .progress { height:10px; background:#0b142e; border:1px solid #22325d; border-radius:999px; overflow:hidden; }
+        .bar { height:100%; width:0%; background: linear-gradient(90deg, var(--accent), var(--good)); }
+        .msg { text-align:center; min-height:28px; margin-top:8px; font-weight:700; }
+        .kbd { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; background:#0c1430; border:1px solid #22325d; padding:2px 6px; border-radius:6px; }
+        .hidden { display:none; }
+    </style>
+</head>
+<body>
+<div class="wrap">
+    <!-- Screen: Instructions -->
+    <div id="screenIntro" class="card center">
+        <h1>Welcome to the 2-Back Task</h1>
+        <p>
+            In this memory game you will see a sequence of random letters.<br/>
+            Each letter appears for 1.2 seconds followed by a short blank.<br/><br/>
+            <b>Your task:</b> Press <span class="kbd">SPACE</span> (or click <b>Match</b>) <br/>
+            if the current letter is the same as the one <b>2 steps earlier</b>.
+        </p>
+        <p class="center" style="margin-top:8px">
+            Example: <span class="kbd">E B R B H S E I H I J K W R W</span><br/>
+            Targets here are: <b>B, I, W</b>.
+        </p>
+        <p style="margin-top:12px">
+            The task will run for <b>2 minutes</b>. Try to be accurate and fast!
+        </p>
+        <div class="btns">
+            <button id="startBtn" class="primary">Start (S or Space)</button>
+        </div>
+    </div>
+
+    <!-- Screen: Task -->
+    <div id="screenTask" class="card hidden">
+        <div class="row" style="margin-bottom:12px">
+            <div class="stat"><div class="label">Time Left</div><div id="timeVal" class="value">120</div></div>
+            <div class="stat"><div class="label">Targets</div><div id="targetsVal" class="value">0</div></div>
+            <div class="stat"><div class="label">Hits</div><div id="hitsVal" class="value">0</div></div>
+            <div class="stat"><div class="label">Misses</div><div id="missesVal" class="value">0</div></div>
+            <div class="stat"><div class="label">False Alarms</div><div id="faVal" class="value">0</div></div>
+        </div>
+
+        <div class="stim" id="stimulus">—</div>
+        <div class="msg" id="feedback"></div>
+
+        <div class="btns">
+            <button id="matchBtn" class="good">Match (SPACE)</button>
+            <button id="resetBtn" class="warn">Reset (R)</button>
+        </div>
+    </div>
+
+    <!-- Screen: Results -->
+    <div id="screenDone" class="card center hidden">
+        <h1>Finished!</h1>
+        <p id="summary" style="font-size:18px"></p>
+        <div class="btns">
+            <button id="againBtn" class="primary">Run Again</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    (function () {
+        // --- Config ---
+        const TARGET_PROB = 0.30;   // ~30% targets
+        const ON_MS = 1200;         // stimulus on (ms)
+        const ISI_MS = 800;         // blank ISI (ms)
+        const N = 2;                // 2-back
+        const GAME_TIME = 120000;   // 2 minutes in ms
+
+        // --- Elements ---
+        const screenIntro = document.getElementById('screenIntro');
+        const screenTask  = document.getElementById('screenTask');
+        const screenDone  = document.getElementById('screenDone');
+
+        const startBtn = document.getElementById('startBtn');
+        const matchBtn = document.getElementById('matchBtn');
+        const resetBtn = document.getElementById('resetBtn');
+        const againBtn = document.getElementById('againBtn');
+
+        const stimEl = document.getElementById('stimulus');
+        const feedbackEl = document.getElementById('feedback');
+
+        const timeVal = document.getElementById('timeVal');
+        const targetsVal = document.getElementById('targetsVal');
+        const hitsVal = document.getElementById('hitsVal');
+        const missesVal = document.getElementById('missesVal');
+        const faVal = document.getElementById('faVal');
+        const summaryEl = document.getElementById('summary');
+
+        // --- State ---
+        const LETTERS = Array.from('ABCDEFGHIJKLMNOPQRSTUVWXYZ');
+        let seq = [];
+        let isTarget = [];
+        let step = 0;
+        let running = false;
+        let respondedThisStep = false;
+        let currentOnset = 0;
+        let timerId = null;
+        let timeLeft = GAME_TIME;
+
+        // performance
+        let targets = 0, hits = 0, misses = 0, falseAlarms = 0;
+
+        // --- Helpers ---
+        function showIntro() {
+            screenIntro.classList.remove('hidden');
+            screenTask.classList.add('hidden');
+            screenDone.classList.add('hidden');
+        }
+        function showTask() {
+            screenIntro.classList.add('hidden');
+            screenTask.classList.remove('hidden');
+            screenDone.classList.add('hidden');
+        }
+        function showDone() {
+            screenIntro.classList.add('hidden');
+            screenTask.classList.add('hidden');
+            screenDone.classList.remove('hidden');
+        }
+
+        function updateStats() {
+            timeVal.textContent = Math.ceil(timeLeft/1000);
+            targetsVal.textContent = targets;
+            hitsVal.textContent = hits;
+            missesVal.textContent = misses;
+            faVal.textContent = falseAlarms;
+        }
+
+        function sample(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
+
+        function nextLetter() {
+            let newLetter;
+            if (step >= N && Math.random() < TARGET_PROB) {
+                newLetter = seq[step - N];
+                isTarget.push(true);
+                targets++;
+            } else {
+                do { newLetter = sample(LETTERS); }
+                while (step >= N && newLetter === seq[step - N]);
+                isTarget.push(false);
+            }
+            seq.push(newLetter);
+        }
+
+        function startTask() {
+            if (running) return;
+            running = true;
+            step = 0;
+            seq = [];
+            isTarget = [];
+            targets = hits = misses = falseAlarms = 0;
+            timeLeft = GAME_TIME;
+            feedbackEl.textContent = '';
+            showTask();
+            tick();
+            timerId = setInterval(() => {
+                timeLeft -= 1000;
+                updateStats();
+                if (timeLeft <= 0) finish();
+            }, 1000);
+        }
+
+        function respond() {
+            if (!running) return;
+            if (respondedThisStep) return;
+            respondedThisStep = true;
+            const target = isTarget[step];
+            if (target) {
+                hits++;
+                feedbackEl.textContent = '✅ Correct';
+                feedbackEl.style.color = 'var(--good)';
+            } else {
+                falseAlarms++;
+                feedbackEl.textContent = '❌ False alarm';
+                feedbackEl.style.color = 'var(--bad)';
+            }
+            updateStats();
+        }
+
+        function finish() {
+            running = false;
+            clearInterval(timerId);
+            showDone();
+            const acc = targets ? Math.round((hits/targets)*100) : 0;
+            summaryEl.innerHTML =
+                `Targets: <b>${targets}</b> | Hits: <b>${hits}</b> | Misses: <b>${misses}</b> | False Alarms: <b>${falseAlarms}</b><br>` +
+                `Accuracy (Hits / Targets): <b>${acc}%</b>`;
+        }
+
+        function tick() {
+            if (!running || timeLeft <= 0) return;
+            nextLetter();
+            stimEl.textContent = seq[step];
+            respondedThisStep = false;
+            currentOnset = performance.now();
+            updateStats();
+
+            setTimeout(() => {
+                stimEl.textContent = '';
+                if (isTarget[step] && !respondedThisStep) misses++;
+                step++;
+                setTimeout(tick, ISI_MS);
+            }, ON_MS);
+        }
+
+        function resetAll() {
+            running = false;
+            clearInterval(timerId);
+            stimEl.textContent = '—';
+            feedbackEl.textContent = '';
+            showIntro();
+        }
+
+        // --- Events ---
+        startBtn.addEventListener('click', startTask);
+        matchBtn.addEventListener('click', respond);
+        resetBtn.addEventListener('click', resetAll);
+        againBtn.addEventListener('click', () => { resetAll(); startTask(); });
+
+        document.addEventListener('keydown', (e) => {
+            if (e.code === 'Space') { e.preventDefault(); running ? respond() : startTask(); }
+            else if (e.key.toLowerCase() === 's' && !running) startTask();
+            else if (e.key.toLowerCase() === 'r') resetAll();
+        });
+
+        showIntro();
+    })();
+</script>
+</body>
+</html>
+
+
+<script type="module">
+    import { saveResult } from "./firebase.js";
+
+    function finishNBack(score) {
+        saveResult("N-Back Task", score);
+        alert("Score saved! Moving to Corsi Block Test.");
+        window.location.href = "game4.html";
+    }
+</script>

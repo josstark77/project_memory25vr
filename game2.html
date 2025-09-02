@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Tower of Hanoi - Levels</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            background-color: #222;
+            color: #fff;
+            margin: 0;
+            padding: 0;
+        }
+        h1 { margin-top: 20px; }
+        #game, #info { display: none; }
+        #startScreen, #instructionScreen {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        button {
+            padding: 12px 24px;
+            margin-top: 20px;
+            font-size: 18px;
+            font-weight: bold;
+            border: none;
+            border-radius: 8px;
+            background: #4facfe;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+        button:hover { background: #00f2fe; }
+        #game {
+            display: flex;
+            justify-content: center;
+            margin-top: 50px;
+            gap: 60px;
+        }
+        .tower {
+            width: 120px;
+            height: 250px;
+            border: 3px solid #fff;
+            display: flex;
+            flex-direction: column-reverse;
+            align-items: center;
+            padding-bottom: 10px;
+            cursor: pointer;
+        }
+        .disk {
+            height: 25px;
+            margin: 3px 0;
+            border-radius: 5px;
+            background: linear-gradient(to bottom, #4facfe, #00f2fe);
+            color: #000;
+            font-weight: bold;
+            text-align: center;
+            line-height: 25px;
+        }
+        #info { margin-top: 20px; }
+        #message {
+            margin-top: 15px;
+            font-size: 18px;
+            font-weight: bold;
+            color: #0f0;
+        }
+        .instruction-step {
+            margin-top: 20px;
+            background: rgba(255, 255, 255, 0.05);
+            padding: 15px;
+            border-radius: 10px;
+            max-width: 600px;
+        }
+        .caption {
+            font-size: 14px;
+            margin-top: 5px;
+            color: #ddd;
+        }
+        /* Mini illustrations for steps */
+        .mini-board {
+            display: flex;
+            justify-content: center;
+            gap: 40px;
+            margin-top: 10px;
+        }
+        .mini-tower {
+            width: 60px;
+            height: 120px;
+            border: 2px solid #fff;
+            display: flex;
+            flex-direction: column-reverse;
+            align-items: center;
+            padding-bottom: 5px;
+        }
+        .mini-disk {
+            height: 15px;
+            margin: 2px 0;
+            border-radius: 3px;
+            background: linear-gradient(to bottom, #4facfe, #00f2fe);
+            color: #000;
+            font-size: 10px;
+            font-weight: bold;
+            text-align: center;
+            line-height: 15px;
+        }
+    </style>
+</head>
+<body>
+<h1>Tower of Hanoi - Levels</h1>
+
+<!-- Start Screen -->
+<div id="startScreen">
+    <h2>Welcome to Tower of Hanoi</h2>
+    <button onclick="showInstructions()">Enter Game</button>
+</div>
+
+<!-- Instruction Screen -->
+<div id="instructionScreen" style="display:none;">
+    <h2>How to Play</h2>
+    <p>The goal is to move all disks from the <b>first tower</b> to the <b>last tower</b>.</p>
+    <ul style="text-align:left; max-width:600px; margin:auto;">
+        <li>Only <b>one disk</b> can be moved at a time.</li>
+        <li>You can only move the <b>top disk</b> of a tower.</li>
+        <li>No disk may be placed on top of a smaller disk.</li>
+    </ul>
+
+    <!-- Step Illustrations -->
+    <div class="instruction-step">
+        <h3>Step 1</h3>
+        <div class="mini-board">
+            <div class="mini-tower">
+                <div class="mini-disk" style="width:50px;">3</div>
+                <div class="mini-disk" style="width:40px;">2</div>
+                <div class="mini-disk" style="width:30px;">1</div>
+            </div>
+            <div class="mini-tower"></div>
+            <div class="mini-tower"></div>
+        </div>
+        <div class="caption">Start: All disks stacked on the first tower.</div>
+    </div>
+
+    <div class="instruction-step">
+        <h3>Step 2</h3>
+        <div class="mini-board">
+            <div class="mini-tower">
+                <div class="mini-disk" style="width:50px;">3</div>
+                <div class="mini-disk" style="width:40px;">2</div>
+            </div>
+            <div class="mini-tower">
+                <div class="mini-disk" style="width:30px;">1</div>
+            </div>
+            <div class="mini-tower"></div>
+        </div>
+        <div class="caption">Move one disk at a time to another tower.</div>
+    </div>
+
+    <div class="instruction-step">
+        <h3>Step 3</h3>
+        <div class="mini-board">
+            <div class="mini-tower"></div>
+            <div class="mini-tower"></div>
+            <div class="mini-tower">
+                <div class="mini-disk" style="width:50px;">3</div>
+                <div class="mini-disk" style="width:40px;">2</div>
+                <div class="mini-disk" style="width:30px;">1</div>
+            </div>
+        </div>
+        <div class="caption">Goal: All disks moved to the last tower.</div>
+    </div>
+
+    <button onclick="startGame()">Start Playing</button>
+</div>
+
+<!-- Game Section -->
+<div id="gameSection" style="display:none;">
+    <div id="game">
+        <div class="tower" id="tower1"></div>
+        <div class="tower" id="tower2"></div>
+        <div class="tower" id="tower3"></div>
+    </div>
+    <div id="info">
+        Level: <span id="level">1</span> |
+        Moves: <span id="moves">0</span>
+    </div>
+    <div id="message"></div>
+</div>
+
+<script>
+    let level = 1;
+    const numLevels = 3;
+    let numDisks = 3;
+    const towers = [
+        document.getElementById("tower1"),
+        document.getElementById("tower2"),
+        document.getElementById("tower3")
+    ];
+    let moves = 0;
+    let totalMoves = 0;
+    let selectedDisk = null;
+
+    function showInstructions() {
+        document.getElementById("startScreen").style.display = "none";
+        document.getElementById("instructionScreen").style.display = "flex";
+    }
+
+    function startGame() {
+        document.getElementById("instructionScreen").style.display = "none";
+        document.getElementById("gameSection").style.display = "block";
+        initGame();
+    }
+
+    function initGame() {
+        for (let t of towers) t.innerHTML = "";
+        for (let i = numDisks; i >= 1; i--) {
+            const disk = document.createElement("div");
+            disk.classList.add("disk");
+            disk.style.width = (i * 30) + "px";
+            disk.textContent = i;
+            towers[0].appendChild(disk);
+        }
+        moves = 0;
+        document.getElementById("moves").textContent = moves;
+        document.getElementById("level").textContent = level;
+        document.getElementById("message").textContent = "";
+    }
+
+    towers.forEach(tower => {
+        tower.addEventListener("click", () => {
+            if (!selectedDisk) {
+                if (tower.lastElementChild) {
+                    selectedDisk = tower.lastElementChild;
+                    selectedDisk.style.background = "orange";
+                }
+            } else {
+                const topDisk = tower.lastElementChild;
+                if (!topDisk || parseInt(topDisk.textContent) > parseInt(selectedDisk.textContent)) {
+                    tower.appendChild(selectedDisk);
+                    moves++;
+                    document.getElementById("moves").textContent = moves;
+                    checkWin();
+                }
+                selectedDisk.style.background = "linear-gradient(to bottom, #4facfe, #00f2fe)";
+                selectedDisk = null;
+            }
+        });
+    });
+
+    function checkWin() {
+        if (towers[2].childElementCount === numDisks) {
+            totalMoves += moves;
+            if (level < numLevels) {
+                document.getElementById("message").textContent =
+                    `✅ Level ${level} completed in ${moves} moves! Starting next level...`;
+                setTimeout(() => {
+                    level++;
+                    numDisks++;
+                    initGame();
+                }, 2000);
+            } else {
+                document.getElementById("message").textContent =
+                    `🎉 All levels completed! Total moves used: ${totalMoves}`;
+            }
+        }
+    }
+</script>
+</body>
+</html>
+
+<script type="module">
+    import { saveResult } from "./firebase.js";
+
+    function finishHanoi(score) {
+        saveResult("Tower of Hanoi", score);
+        alert("Score saved! Moving to N-Back Task.");
+        window.location.href = "game3.html";
+    }
+</script>

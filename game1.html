@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Digit Span Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #0b1020;
+            color: #e8eefc;
+            text-align: center;
+            padding: 20px;
+        }
+        #digitBox {
+            font-size: 2em;
+            margin: 20px;
+            background: #1a1f38;
+            display: inline-block;
+            padding: 15px 25px;
+            border-radius: 10px;
+            box-shadow: 0 0 15px #444;
+            min-width: 120px;
+            min-height: 60px;
+        }
+        input {
+            font-size: 1.2em;
+            padding: 8px;
+            margin-top: 10px;
+            border-radius: 5px;
+            border: none;
+        }
+        button {
+            font-size: 1.1em;
+            padding: 8px 15px;
+            margin: 10px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            background: #4cafef;
+            color: #fff;
+            box-shadow: 0 0 8px #333;
+        }
+        button:hover { background: #3a8cd1; }
+        #clearBtn { background: #f44336; }
+        #clearBtn:hover { background: #d32f2f; }
+        #instructions {
+            background: #1e243d;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 0 12px #444;
+            margin: 20px auto;
+            max-width: 600px;
+        }
+        #game { display: none; }
+        #finalReport {
+            display: none;
+            background: #1e243d;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 0 12px #444;
+            margin-top: 20px;
+            text-align: left;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+    </style>
+</head>
+<body>
+<h1>Digit Span Test</h1>
+
+<!-- Instructions -->
+<div id="instructions">
+    <h2>How to Play</h2>
+    <p>You will see digits one by one on the screen.</p>
+    <p>Your task is to remember the digits and type them in the same order.</p>
+    <p>Each level increases the length of digits.</p>
+    <p>If you fail once, you will get a second chance.<br>
+        In the second chance, you must correctly complete <b>two sequences</b> to pass.<br>
+        If you fail, the game is over.</p>
+    <p>Example:</p>
+    <p><b>Digits appear:</b> <span style="color:yellow">3 → 8 → 1</span><br>
+        <b>You enter:</b> 381 ✅</p>
+    <button onclick="startGame()">Start Game</button>
+</div>
+
+<!-- Game area -->
+<div id="game">
+    <h2 id="levelText">Level: 1</h2>
+    <h3 id="chanceText">Chance: 1</h3>
+    <div id="digitBox"></div><br>
+    <input type="text" id="userInput" placeholder="Enter digits">
+    <br>
+    <button onclick="checkAnswer()">Submit</button>
+    <button id="clearBtn" onclick="clearInput()">Clear</button>
+    <h3 id="status"></h3>
+</div>
+
+<!-- Final Report -->
+<div id="finalReport">
+    <h2>Game Over ❌</h2>
+    <h3>Performance Summary:</h3>
+    <ul id="reportList"></ul>
+</div>
+
+<script>
+    let level = 1;
+    let chance = 1;
+    let sequence = "";
+    let penaltyStep = 0;
+    let gameLog = []; // store performance per level
+
+    function startGame() {
+        document.getElementById("instructions").style.display = "none";
+        document.getElementById("game").style.display = "block";
+        nextRound();
+    }
+
+    function generateSequence(len) {
+        let seq = "";
+        for (let i = 0; i < len; i++) {
+            seq += Math.floor(Math.random() * 10);
+        }
+        return seq;
+    }
+
+    // Show "Get Ready, Go!" before digits
+    function showReady(callback) {
+        let digitBox = document.getElementById("digitBox");
+        digitBox.innerText = "Get Ready...";
+        setTimeout(() => {
+            digitBox.innerText = "Go!";
+            setTimeout(() => {
+                digitBox.innerText = "";
+                callback();
+            }, 800);
+        }, 1000);
+    }
+
+    // Show digits one by one
+    function showSequence(seq) {
+        let digitBox = document.getElementById("digitBox");
+        let i = 0;
+        digitBox.innerText = "";
+
+        let interval = setInterval(() => {
+            if (i < seq.length) {
+                digitBox.innerText = seq[i];
+                i++;
+                setTimeout(() => { digitBox.innerText = ""; }, 600);
+            } else {
+                clearInterval(interval);
+            }
+        }, 1000);
+    }
+
+    function nextRound() {
+        let length = level + 2;
+        sequence = generateSequence(length);
+
+        document.getElementById("levelText").innerText = "Level: " + level;
+        document.getElementById("chanceText").innerText = "Chance: " + chance;
+        document.getElementById("status").innerText = "";
+        document.getElementById("userInput").value = "";
+
+        showReady(() => showSequence(sequence));
+    }
+
+    function checkAnswer() {
+        let input = document.getElementById("userInput").value.trim();
+        if (input === sequence) {
+            if (chance === 1) {
+                gameLog.push(`Level ${level} - Finished in 1st chance ✅`);
+                document.getElementById("status").innerText = "Correct ✅";
+                level++;
+                nextRound();
+            } else {
+                penaltyStep++;
+                if (penaltyStep < 2) {
+                    document.getElementById("status").innerText = "Good! One more sequence!";
+                    nextRound();
+                } else {
+                    gameLog.push(`Level ${level} - Passed using 2nd chance ✅`);
+                    penaltyStep = 0;
+                    chance = 1;
+                    level++;
+                    nextRound();
+                }
+            }
+        } else {
+            if (chance === 1) {
+                chance = 2;
+                document.getElementById("status").innerText = "Wrong ❌ - Second chance (2 sequences needed)";
+                nextRound();
+            } else {
+                gameLog.push(`Level ${level} - Failed ❌`);
+                endGame();
+            }
+        }
+    }
+
+    function endGame() {
+        document.getElementById("game").style.display = "none";
+        document.getElementById("finalReport").style.display = "block";
+
+        let reportList = document.getElementById("reportList");
+        reportList.innerHTML = "";
+        gameLog.forEach(item => {
+            let li = document.createElement("li");
+            li.innerText = item;
+            reportList.appendChild(li);
+        });
+    }
+
+    function clearInput() {
+        document.getElementById("userInput").value = "";
+    }
+</script>
+</body>
+</html>
+
+<script type="module">
+    import { saveResult } from "./firebase.js";
+
+    function finishDigitSpan(score) {
+        saveResult("Digit Span Test", score);
+        alert("Score saved! Moving to Tower of Hanoi.");
+        window.location.href = "game2.html";
+    }
+
+    // Example usage when game ends:
+    // finishDigitSpan(finalScore);
+</script>
